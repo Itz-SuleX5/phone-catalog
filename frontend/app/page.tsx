@@ -12,10 +12,14 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SocialLinks } from "@/components/SocialLinks"
+import { PhoneSearch } from "@/components/PhoneSearch"
 
 export default function Component() {
   const [isOpen, setIsOpen] = useState(false)
   const [products, setProducts] = useState([])
+  const [showPhoneSearch, setShowPhoneSearch] = useState(false)
+  const [selectedPhone, setSelectedPhone] = useState(null)
+  const [newPrice, setNewPrice] = useState('')
 
   useEffect(() => {
     fetch('http://localhost:8000/api/products/')
@@ -23,6 +27,38 @@ export default function Component() {
       .then(data => setProducts(data))
       .catch(error => console.error('Error:', error));
   }, []);
+
+  const handlePhoneSelect = async (phone) => {
+    setSelectedPhone(phone)
+    setShowPhoneSearch(false)
+  }
+
+  const handleAddProduct = async () => {
+    if (!selectedPhone || !newPrice) return;
+
+    try {
+      const response = await fetch('http://localhost:8000/api/products/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: selectedPhone.name,
+          precio: parseFloat(newPrice),
+          imagen_url: selectedPhone.img
+        })
+      });
+
+      if (response.ok) {
+        const newProduct = await response.json();
+        setProducts([...products, newProduct]);
+        setSelectedPhone(null);
+        setNewPrice('');
+      }
+    } catch (error) {
+      console.error('Error adding product:', error);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -93,10 +129,38 @@ export default function Component() {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Encuentra los últimos modelos de las mejores marcas con ofertas increíbles y envío gratuito
             </p>
-            <Button size="lg" className="rounded-full bg-black text-white hover:bg-black/90">
-              Ver Catálogo
+            <Button 
+              size="lg" 
+              className="rounded-full bg-black text-white hover:bg-black/90"
+              onClick={() => setShowPhoneSearch(true)}
+            >
+              Agregar Producto
             </Button>
           </div>
+
+          {showPhoneSearch && (
+            <div className="mt-8 bg-white p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-4">Buscar y Agregar Producto</h2>
+              <PhoneSearch onPhoneSelect={handlePhoneSelect} />
+              
+              {selectedPhone && (
+                <div className="mt-4 p-4 border rounded-lg">
+                  <h3 className="font-semibold mb-2">Teléfono seleccionado: {selectedPhone.name}</h3>
+                  <img src={selectedPhone.img} alt={selectedPhone.name} className="w-32 h-32 object-contain mb-2" />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Precio"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                    />
+                    <Button onClick={handleAddProduct}>Agregar</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="aspect-square rounded-2xl bg-white/50 backdrop-blur-sm p-4 flex items-center justify-center">
               <img
@@ -146,7 +210,7 @@ export default function Component() {
             {products.slice(0, 4).map((product: any) => (
               <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <img
-                  src={`http://localhost:8000${product.imagen}`}
+                  src={product.imagen_url}
                   alt={product.nombre}
                   className="w-full h-48 object-cover"
                 />
@@ -167,7 +231,7 @@ export default function Component() {
             {products.slice(0, 4).map((product: any) => (
               <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <img
-                  src={`http://localhost:8000${product.imagen}`}
+                  src={product.imagen_url}
                   alt={product.nombre}
                   className="w-full h-48 object-cover"
                 />
