@@ -11,7 +11,6 @@ import { EditProductDialog } from "./EditProductDialog";
 import { useState } from "react";
 
 interface Product {
-  id: number;
   nombre: string;
   precio: number;
   imagen_url: string;
@@ -25,16 +24,25 @@ interface ProductTableProps {
 export function ProductTable({ products, onProductsChange }: ProductTableProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDelete = async (nombre: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) return;
     
     try {
-      await fetch(`http://localhost:8000/api/products/${id}/`, {
+      const response = await fetch(`http://localhost:8000/api/products/${encodeURIComponent(nombre)}/`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete product');
+      }
+
       onProductsChange();
     } catch (error) {
       console.error('Error deleting product:', error);
+      alert('Error deleting product. Please try again.');
     }
   };
 
@@ -51,7 +59,7 @@ export function ProductTable({ products, onProductsChange }: ProductTableProps) 
         </TableHeader>
         <TableBody>
           {products.map((product) => (
-            <TableRow key={product.id}>
+            <TableRow key={product.nombre}>
               <TableCell>
                 <img 
                   src={product.imagen_url} 
@@ -71,7 +79,7 @@ export function ProductTable({ products, onProductsChange }: ProductTableProps) 
                   </Button>
                   <Button 
                     variant="destructive"
-                    onClick={() => handleDelete(product.id)}
+                    onClick={() => handleDelete(product.nombre)}
                   >
                     Delete
                   </Button>

@@ -12,23 +12,26 @@ interface AddProductDialogProps {
 
 export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProductDialogProps) {
   const [productName, setProductName] = useState('');
+  const [productPrice, setProductPrice] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!productName || !productPrice) return;
+
     setLoading(true);
     setError('');
     
     try {
-      // Call the search_and_create endpoint
       const response = await fetch('http://localhost:8000/api/products/search_and_create/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          nombre: productName
+          nombre: productName,
+          precio: Number(productPrice)
         }),
       });
 
@@ -37,10 +40,15 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
         throw new Error(errorData.error || 'Failed to add product');
       }
 
+      const data = await response.json();
+      console.log('Product added:', data);
+
       setProductName('');
+      setProductPrice('');
       onOpenChange(false);
       onProductAdded();
     } catch (error) {
+      console.error('Error adding product:', error);
       setError(error instanceof Error ? error.message : 'Failed to add product');
     } finally {
       setLoading(false);
@@ -64,6 +72,19 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
               required
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="precio">Price</Label>
+            <Input
+              id="precio"
+              type="number"
+              step="0.01"
+              min="0"
+              value={productPrice}
+              onChange={(e) => setProductPrice(e.target.value)}
+              placeholder="Enter price (e.g., 999.99)"
+              required
+            />
+          </div>
           {error && (
             <div className="text-red-500 text-sm">
               {error}
@@ -78,7 +99,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !productName || !productPrice}>
               {loading ? 'Adding...' : 'Add Product'}
             </Button>
           </div>

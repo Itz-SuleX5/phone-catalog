@@ -22,14 +22,25 @@ export default function Component() {
   const [newPrice, setNewPrice] = useState('')
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/products/')
-      .then(response => response.json())
-      .then(data => setProducts(data))
-      .catch(error => console.error('Error:', error));
-  }, []);
+    fetchProducts()
+  }, [])
 
-  const handlePhoneSelect = async (phone) => {
-    setSelectedPhone(phone)
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/products/')
+      if (!response.ok) {
+        throw new Error('Failed to fetch products')
+      }
+      const data = await response.json()
+      setProducts(data)
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    }
+  }
+
+  const handlePhoneSelect = async (productName: string) => {
+    // Actualizar la lista de productos después de agregar uno nuevo
+    await fetchProducts()
     setShowPhoneSearch(false)
   }
 
@@ -60,8 +71,25 @@ export default function Component() {
     }
   }
 
+  const handleDeleteProduct = async (productName: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/products/${encodeURIComponent(productName)}/`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Actualizar la lista de productos después de eliminar
+        await fetchProducts();
+      } else {
+        console.error('Error deleting product');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="bg-gray-100 min-h-screen">
       <nav className="fixed top-4 left-4 right-4 bg-black/90 backdrop-blur-sm rounded-full px-4 py-2 flex items-center justify-between z-50">
         <div className="flex items-center gap-4">
           <Sheet>
@@ -124,24 +152,22 @@ export default function Component() {
         <div className="container mx-auto px-4">
           <div className="text-center space-y-6">
             <h1 className="text-4xl sm:text-6xl font-bold text-gray-900">
-              Descubre tu Próximo Smartphone
+              Descubre los mejores teléfonos del mercado
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Encuentra los últimos modelos de las mejores marcas con ofertas increíbles y envío gratuito
+              Encuentra el teléfono perfecto para ti con nuestra selección premium
             </p>
-            <Button 
-              size="lg" 
-              className="rounded-full bg-black text-white hover:bg-black/90"
-              onClick={() => setShowPhoneSearch(true)}
-            >
-              Agregar Producto
-            </Button>
+            <div className="max-w-xs mx-auto sm:max-w-none sm:flex sm:justify-center">
+              <Button size="lg" className="w-full mb-4 sm:w-auto sm:mb-0" onClick={() => setShowPhoneSearch(true)}>
+                Explorar productos
+              </Button>
+            </div>
           </div>
 
           {showPhoneSearch && (
             <div className="mt-8 bg-white p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-bold mb-4">Buscar y Agregar Producto</h2>
-              <PhoneSearch onPhoneSelect={handlePhoneSelect} />
+              <PhoneSearch onPhoneSelect={(productName: string) => handlePhoneSelect(productName)} />
               
               {selectedPhone && (
                 <div className="mt-4 p-4 border rounded-lg">
@@ -208,16 +234,18 @@ export default function Component() {
           <h2 className="text-3xl font-bold text-center mb-8">Productos más vendidos</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {products.slice(0, 4).map((product: any) => (
-              <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <img
-                  src={product.imagen_url}
-                  alt={product.nombre}
-                  className="w-full h-48 object-cover"
-                />
+              <div key={product.nombre} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="relative h-48 w-full">
+                  <img
+                    src={product.imagen_url}
+                    alt={product.nombre}
+                    className="absolute w-full h-full object-contain p-2"
+                  />
+                </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-lg mb-2">{product.nombre}</h3>
                   <p className="text-gray-600">${product.precio}</p>
-                  <Button className="w-full mt-4">Añadir al carrito</Button>
+                  <Button className="w-full mt-4">Ver detalles</Button>
                 </div>
               </div>
             ))}
@@ -229,12 +257,14 @@ export default function Component() {
           <h2 className="text-3xl font-bold text-center mb-8">Nuevos productos</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {products.slice(0, 4).map((product: any) => (
-              <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <img
-                  src={product.imagen_url}
-                  alt={product.nombre}
-                  className="w-full h-48 object-cover"
-                />
+              <div key={product.nombre} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="relative h-48 w-full">
+                  <img
+                    src={product.imagen_url}
+                    alt={product.nombre}
+                    className="absolute w-full h-full object-contain p-2"
+                  />
+                </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-lg mb-2">{product.nombre}</h3>
                   <p className="text-gray-600">${product.precio}</p>

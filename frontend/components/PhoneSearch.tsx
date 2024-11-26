@@ -1,65 +1,120 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import { Trash2 } from 'lucide-react'
 
 interface PhoneSearchProps {
-  onPhoneSelect: (phone: { name: string; img: string }) => void;
+  onPhoneSelect: (productName: string) => void;
 }
 
 export function PhoneSearch({ onPhoneSelect }: PhoneSearchProps) {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [results, setResults] = useState<any[]>([])
+  const [productName, setProductName] = useState('')
+  const [products, setProducts] = useState<any[]>([])
 
-  const searchPhones = async () => {
-    if (!searchTerm) return
-    
-    setSearching(true)
+  // Cargar productos al montar el componente
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
     try {
-      const response = await fetch(`https://dummyjson.com/products/search?q=${searchTerm}&category=smartphones`)
+      const response = await fetch('http://localhost:8000/api/products/')
+      if (!response.ok) throw new Error('Failed to fetch products')
       const data = await response.json()
-      setResults(data.products || [])
+      setProducts(data)
     } catch (error) {
-      console.error('Error searching phones:', error)
+      console.error('Error fetching products:', error)
     }
-    setSearching(false)
+  }
+
+  const handleSubmit = async () => {
+    if (!productName) return;
+    
+    try {
+      const response = await fetch('http://localhost:8000/api/products/search_and_create/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: productName
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add product');
+      }
+
+      const data = await response.json();
+      onPhoneSelect(productName);
+      setProductName('');
+      // Actualizar la lista de productos
+      await fetchProducts();
+    } catch (error) {
+      console.error('Error adding product:', error);
+      alert('Error adding product. Please try again.');
+    }
+  }
+
+  const handleDelete = async (productName: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/products/${encodeURIComponent(productName)}/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete product');
+      }
+
+      // Actualizar la lista de productos después de eliminar
+      await fetchProducts();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Error deleting product. Please try again.');
+    }
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex gap-2">
         <Input
           type="text"
-          placeholder="Buscar teléfono..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && searchPhones()}
+          placeholder="Nombre del producto..."
+          value={productName}
+          onChange={(e) => setProductName(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
         />
-        <Button onClick={searchPhones} disabled={searching}>
-          {searching ? 'Buscando...' : 'Buscar'}
+        <Button onClick={handleSubmit}>
+          Agregar Producto
         </Button>
       </div>
-      
-      {results.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {results.map((phone) => (
-            <div
-              key={phone.id}
-              className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
-              onClick={() => onPhoneSelect({ name: phone.title, img: phone.thumbnail })}
-            >
-              <img
-                src={phone.thumbnail}
-                alt={phone.title}
-                className="w-full h-48 object-contain mb-2"
-              />
-              <p className="text-sm text-center">{phone.title}</p>
+
+      {/* Lista de productos */}
+      <div className="mt-4">
+        <h3 className="text-lg font-semibold mb-2">Productos Agregados</h3>
+        <div className="space-y-2">
+          {products.map((product) => (
+            <div key={product.nombre} className="flex items-center justify-between bg-white p-3 rounded-lg shadow">
+              <div>
+                <p className="font-medium">{product.nombre}</p>
+                <p className="text-sm text-gray-600">${product.precio}</p>
+              </div>
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => handleDelete(product.nombre)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   )
 }
