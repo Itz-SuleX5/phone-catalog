@@ -11,36 +11,39 @@ interface AddProductDialogProps {
 }
 
 export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProductDialogProps) {
-  const [formData, setFormData] = useState({
-    nombre: '',
-    precio: '',
-    imagen_url: ''
-  });
+  const [productName, setProductName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     
     try {
-      const response = await fetch('http://localhost:8000/api/products/', {
+      // Call the search_and_create endpoint
+      const response = await fetch('http://localhost:8000/api/products/search_and_create/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
-          precio: parseFloat(formData.precio)
+          nombre: productName
         }),
       });
 
-      if (response.ok) {
-        setFormData({ nombre: '', precio: '', imagen_url: '' });
-        onOpenChange(false);
-        onProductAdded();
-      } else {
-        console.error('Error adding product');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add product');
       }
+
+      setProductName('');
+      onOpenChange(false);
+      onProductAdded();
     } catch (error) {
-      console.error('Error adding product:', error);
+      setError(error instanceof Error ? error.message : 'Failed to add product');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,40 +55,32 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nombre">Name</Label>
+            <Label htmlFor="nombre">Product Name</Label>
             <Input
               id="nombre"
-              value={formData.nombre}
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              placeholder="Enter product name (e.g., Samsung Galaxy S23)"
               required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="precio">Price</Label>
-            <Input
-              id="precio"
-              type="number"
-              step="0.01"
-              value={formData.precio}
-              onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="imagen_url">Image URL</Label>
-            <Input
-              id="imagen_url"
-              type="url"
-              value={formData.imagen_url}
-              onChange={(e) => setFormData({ ...formData, imagen_url: e.target.value })}
-              required
-            />
-          </div>
+          {error && (
+            <div className="text-red-500 text-sm">
+              {error}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
-            <Button type="submit">Add Product</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Adding...' : 'Add Product'}
+            </Button>
           </div>
         </form>
       </DialogContent>
