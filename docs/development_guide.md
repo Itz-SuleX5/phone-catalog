@@ -138,7 +138,149 @@ frontend/
 - Added error handling
 - Implemented loading states
 
-### 5. UI/UX Improvements
+### 5. RapidAPI Integration and Data Flow
+
+#### 5.1 RapidAPI Setup
+1. Signed up for RapidAPI and obtained API key
+2. Selected Products Database API for product information
+3. Configured API credentials in backend:
+```python
+HEADERS = {
+    "x-rapidapi-key": "bb18653d4dmsh9763ddd8e0a6f76p1896cejsnb2c4604c6ecc",
+    "x-rapidapi-host": "products-database.p.rapidapi.com"
+}
+API_URL = "https://products-database.p.rapidapi.com/api/products"
+```
+
+#### 5.2 Backend Implementation
+1. Created ProductDatabaseAPI service in `services.py`:
+```python
+class ProductDatabaseAPI:
+    @classmethod
+    def search_product(cls, query, precio=0.0):
+        try:
+            # Make API request
+            response = requests.get(
+                cls.API_URL,
+                headers=cls.HEADERS,
+                params={
+                    "query": query,
+                    "page": "1",
+                    "lang": "en"
+                }
+            )
+            
+            data = response.json()
+            products = data.get('products', [])
+            
+            if not products:
+                raise Exception('No products found')
+
+            # Extract first image URL
+            product = products[0]
+            image_url = cls.DEFAULT_IMAGE
+            if 'images' in product and product['images']:
+                image_url = product['images'][0]
+
+            # Create product data
+            product_data = {
+                'nombre': query,
+                'precio': float(precio),
+                'imagen_url': image_url
+            }
+
+            # Save to JSON file
+            cls.save_product(product_data)
+            return product_data
+
+        except Exception as e:
+            raise
+```
+
+2. Implemented JSON storage in `services.py`:
+```python
+@classmethod
+def save_product(cls, product_data):
+    products = cls.get_all_products()
+    products.append(product_data)
+    
+    with open(cls.JSON_FILE, 'w') as f:
+        json.dump(products, f, indent=2)
+```
+
+#### 5.3 Frontend Components
+
+1. Created AddProductDialog for product input:
+```typescript
+export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
+  const [productName, setProductName] = useState('');
+  const [productPrice, setProductPrice] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('http://localhost:8000/api/products/search_and_create/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: productName,
+          precio: Number(productPrice)
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add product');
+      
+      onProductAdded();
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+}
+```
+
+#### 5.4 Data Flow Process
+
+1. **User Input**
+   - User enters product name and price in frontend form
+   - Form validates input (required fields, number validation)
+
+2. **Frontend to Backend**
+   - Frontend sends POST request to `/api/products/search_and_create/`
+   - Request includes product name and price
+
+3. **Backend Processing**
+   - Backend receives request and extracts data
+   - Makes API call to RapidAPI Products Database
+   - Processes response and extracts first image URL
+   - Creates product object with user's price and API image
+
+4. **Data Storage**
+   - Backend saves product to local JSON file
+   - Product includes: name, price, and image URL
+
+5. **Frontend Display**
+   - Frontend fetches updated product list
+   - Displays products in responsive grid
+   - Shows product image, name, and price
+
+#### 5.5 Error Handling
+
+1. **Frontend Validation**
+   - Required field validation
+   - Number format validation for price
+   - Loading states during API calls
+
+2. **Backend Validation**
+   - API response validation
+   - Default image fallback
+   - Exception handling for API failures
+
+This implementation provides a seamless experience where users only need to input basic product information, while the system automatically enriches it with data from RapidAPI.
+
+### 6. UI/UX Improvements
 
 1. **Styling**
    - Implemented Tailwind CSS for responsive design
@@ -151,7 +293,7 @@ frontend/
    - Added loading states
    - Created confirmation dialogs
 
-### 6. Testing and Debugging
+### 7. Testing and Debugging
 
 1. **Backend Testing**
    - Tested API endpoints
@@ -163,7 +305,7 @@ frontend/
    - Verified form validation
    - Checked responsive design
 
-### 7. Deployment Preparation
+### 8. Deployment Preparation
 
 1. **Backend Configuration**
    - Added proper CORS settings
